@@ -108,6 +108,7 @@ void Error_Handler(void);
 #define CODEC_SD_GPIO_Port GPIOC
 #define METRIC_CHANGE_Pin GPIO_PIN_0
 #define METRIC_CHANGE_GPIO_Port GPIOA
+#define METRIC_CHANGE_EXTI_IRQn EXTI0_IRQn
 #define CODEC_MCK_Pin GPIO_PIN_3
 #define CODEC_MCK_GPIO_Port GPIOA
 #define RIGHT_MOTOR_IA4_Pin GPIO_PIN_4
