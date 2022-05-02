@@ -54,8 +54,8 @@ MeasuringRobot.bin \
 all: MeasuringRobot.elf secondary-outputs
 
 # Tool invocations
-MeasuringRobot.elf: $(OBJS) $(USER_OBJS) C:\UW-Platteville\Senior\Real-Time\ Embedded\ Systems\repo\Roomba\STM32F413ZHTX_FLASH.ld
-	arm-none-eabi-gcc -o "MeasuringRobot.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\UW-Platteville\Senior\Real-Time Embedded Systems\repo\Roomba\STM32F413ZHTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MeasuringRobot.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+MeasuringRobot.elf: $(OBJS) $(USER_OBJS) D:\School\Semester_8\Real-time\Roomba\STM32F413ZHTX_FLASH.ld
+	arm-none-eabi-gcc -o "MeasuringRobot.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\School\Semester_8\Real-time\Roomba\STM32F413ZHTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="MeasuringRobot.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

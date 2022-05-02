@@ -55,5 +55,5 @@ dkms.conf
 .metadata
 .settings
 [Rr]elease
-[Dd]ebug
+Debug/*
 .launch
