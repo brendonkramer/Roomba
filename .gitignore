@@ -51,9 +51,23 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Eclipse
-.metadata
-.settings
-[Rr]elease
-Debug/*
-.launch
+
+Here's what we've been using lately, it removes all resharper generated stuff and some other important things. Note that we don't commit our release directory, so you shouldn't include Release/ in your .gitignore, but to answer your question, you should include Debug/.
+
+/build/
+*.suo
+*.user
+_ReSharper.*/
+*.sdf
+bin/
+obj/
+Debug/
+Release/
+*.opensdf
+*.tlog
+*.log
+TestResult.xml
+*.VisualState.xml
+Version.cs
+Version.h
+Version.cpp
