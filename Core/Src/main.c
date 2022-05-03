@@ -85,7 +85,7 @@ uint8_t lidar_rx_buffer[9];
 uint8_t lidar_tx_buffer[] = { 0x5A, 0x06, 0x03, 0x00, 0x00, 0x00 };
 extern uint8_t metric_change = 0;
 uint8_t curr_metric = 0;
-uint8_t distance;
+uint16_t distance;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -770,7 +770,10 @@ void StartPollLidarTask(void *argument) {
 		//get 9 bytes of data and place into buffer
 		HAL_UART_Receive(&huart7, lidar_rx_buffer, 9, 50);
 
-		printf(lidar_rx_buffer);
+		distance = lidar_rx_buffer[3];
+		distance << 8;
+		distance |= lidar_rx_buffer[2];
+		printf(distance);
 	}
 	/* USER CODE END 5 */
 }
