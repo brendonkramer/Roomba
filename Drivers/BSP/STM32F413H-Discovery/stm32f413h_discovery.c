@@ -118,7 +118,7 @@ const uint16_t COM_TX_AF[COMn] = {DISCOVERY_COM1_TX_AF};
 
 const uint16_t COM_RX_AF[COMn] = {DISCOVERY_COM1_RX_AF};
 
-static FMPI2C_HandleTypeDef hI2cAudioHandler;
+static I2C_HandleTypeDef hI2cAudioHandler;
 
 /**
   * @}
@@ -127,12 +127,12 @@ static FMPI2C_HandleTypeDef hI2cAudioHandler;
 /** @defgroup STM32F413H_DISCOVERY_LOW_LEVEL_Private_FunctionPrototypes STM32F413H Discovery Low Level Private Prototypes
   * @{
   */
-static void FMPI2Cx_Init(FMPI2C_HandleTypeDef *i2c_handler);
-static void FMPI2Cx_DeInit(FMPI2C_HandleTypeDef *i2c_handler);
+static void I2Cx_Init(I2C_HandleTypeDef *i2c_handler);
+static void I2Cx_DeInit(I2C_HandleTypeDef *i2c_handler);
 
-static HAL_StatusTypeDef FMPI2Cx_ReadMultiple(FMPI2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr, uint16_t Reg, uint16_t MemAddSize, uint8_t *Buffer, uint16_t Length);
-static HAL_StatusTypeDef FMPI2Cx_WriteMultiple(FMPI2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr, uint16_t Reg, uint16_t MemAddSize, uint8_t *Buffer, uint16_t Length);
-static void              FMPI2Cx_Error(FMPI2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr);
+static HAL_StatusTypeDef I2Cx_ReadMultiple(I2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr, uint16_t Reg, uint16_t MemAddSize, uint8_t *Buffer, uint16_t Length);
+static HAL_StatusTypeDef I2Cx_WriteMultiple(I2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr, uint16_t Reg, uint16_t MemAddSize, uint8_t *Buffer, uint16_t Length);
+static void              I2Cx_Error(I2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr);
 
 static void     FMC_BANK3_WriteData(uint16_t Data);
 static void     FMC_BANK3_WriteReg(uint8_t Reg);
@@ -403,7 +403,7 @@ void BSP_COM_DeInit(COM_TypeDef COM, UART_HandleTypeDef *huart)
   * @brief  Initializes FMPI2C MSP.
   * @param  fmpi2c_handler : FMPI2C handler
   */
-static void FMPI2Cx_MspInit(FMPI2C_HandleTypeDef *fmpi2c_handler)
+static void FMPI2Cx_MspInit(I2C_HandleTypeDef *fmpi2c_handler)
 {
   GPIO_InitTypeDef  gpio_init_structure;  
   
@@ -449,20 +449,18 @@ static void FMPI2Cx_MspInit(FMPI2C_HandleTypeDef *fmpi2c_handler)
   * @brief  Initializes FMPI2C HAL.
   * @param  fmpi2c_handler : FMPI2C handler
   */
-static void FMPI2Cx_Init(FMPI2C_HandleTypeDef *fmpi2c_handler)
+static void FMPI2Cx_Init(I2C_HandleTypeDef *fmpi2c_handler)
 {
-  if(HAL_FMPI2C_GetState(fmpi2c_handler) == HAL_FMPI2C_STATE_RESET)
+  if(HAL_FMPI2C_GetState(fmpi2c_handler) == HAL_I2C_STATE_RESET)
   {
     /* Audio FMPI2C configuration */
     fmpi2c_handler->Instance              = DISCOVERY_AUDIO_I2Cx;
-    fmpi2c_handler->Init.Timing           = DISCOVERY_I2Cx_TIMING;
     fmpi2c_handler->Init.OwnAddress1      = 0;
-    fmpi2c_handler->Init.AddressingMode   = FMPI2C_ADDRESSINGMODE_7BIT;
-    fmpi2c_handler->Init.DualAddressMode  = FMPI2C_DUALADDRESS_DISABLE;
+    fmpi2c_handler->Init.AddressingMode   = I2C_ADDRESSINGMODE_7BIT;
+    fmpi2c_handler->Init.DualAddressMode  = I2C_DUALADDRESS_DISABLE;
     fmpi2c_handler->Init.OwnAddress2      = 0;
-    fmpi2c_handler->Init.OwnAddress2Masks = FMPI2C_OA2_NOMASK;
-    fmpi2c_handler->Init.GeneralCallMode  = FMPI2C_GENERALCALL_DISABLE;
-    fmpi2c_handler->Init.NoStretchMode    = FMPI2C_NOSTRETCH_DISABLE;
+    fmpi2c_handler->Init.GeneralCallMode  = I2C_GENERALCALL_DISABLE;
+    fmpi2c_handler->Init.NoStretchMode    = I2C_NOSTRETCH_DISABLE;
     /* Init the FMPI2C */
     FMPI2Cx_MspInit(fmpi2c_handler);
     HAL_FMPI2C_Init(fmpi2c_handler);
@@ -479,7 +477,7 @@ static void FMPI2Cx_Init(FMPI2C_HandleTypeDef *fmpi2c_handler)
   * @param  Length: Length of the data
   * @retval Number of read data
   */
-static HAL_StatusTypeDef FMPI2Cx_ReadMultiple(FMPI2C_HandleTypeDef *fmpi2c_handler,
+static HAL_StatusTypeDef FMPI2Cx_ReadMultiple(I2C_HandleTypeDef *fmpi2c_handler,
                                            uint8_t Addr,
                                            uint16_t Reg,
                                            uint16_t MemAddress,
@@ -509,7 +507,7 @@ static HAL_StatusTypeDef FMPI2Cx_ReadMultiple(FMPI2C_HandleTypeDef *fmpi2c_handl
   * @param  Length: buffer size to be written
   * @retval HAL status
   */
-static HAL_StatusTypeDef FMPI2Cx_WriteMultiple(FMPI2C_HandleTypeDef *fmpi2c_handler,
+static HAL_StatusTypeDef FMPI2Cx_WriteMultiple(I2C_HandleTypeDef *fmpi2c_handler,
                                             uint8_t Addr,
                                             uint16_t Reg,
                                             uint16_t MemAddress,
@@ -529,26 +527,12 @@ static HAL_StatusTypeDef FMPI2Cx_WriteMultiple(FMPI2C_HandleTypeDef *fmpi2c_hand
   return status;
 }
 
-/**
-  * @brief  Manages error callback by re-initializing I2C.
-  * @param  fmpi2c_handler : FMPI2C handler
-  * @param  Addr: I2C Address
-  * @retval None
-  */
-static void FMPI2Cx_Error(FMPI2C_HandleTypeDef *fmpi2c_handler, uint8_t Addr)
-{
-  /* De-initialize the FMPI2C communication bus */
-  HAL_FMPI2C_DeInit(fmpi2c_handler);
-  
-  /* Re-Initialize the FMPI2C communication bus */
-  FMPI2Cx_Init(fmpi2c_handler);
-}
 
 /**
   * @brief  Deinitializes FMPI2C interface
   * @param  fmpi2c_handler : FMPI2C handler
   */
- static void FMPI2Cx_DeInit(FMPI2C_HandleTypeDef *fmpi2c_handler)
+ static void FMPI2Cx_DeInit(I2C_HandleTypeDef *fmpi2c_handler)
 {
   /* Audio and LCD I2C configuration */
   fmpi2c_handler->Instance = DISCOVERY_AUDIO_I2Cx;
@@ -778,7 +762,7 @@ void AUDIO_IO_Write(uint8_t Addr, uint16_t Reg, uint16_t Value)
   
   Value |= ((uint16_t)(tmp << 8)& 0xFF00);
   
-  FMPI2Cx_WriteMultiple(&hI2cAudioHandler, Addr, Reg, FMPI2C_MEMADD_SIZE_16BIT,(uint8_t*)&Value, 2);
+  I2Cx_WriteMultiple(&hI2cAudioHandler, Addr, Reg, I2C_MEMADD_SIZE_16BIT,(uint8_t*)&Value, 2);
 }
 
 /**
@@ -791,7 +775,7 @@ uint16_t AUDIO_IO_Read(uint8_t Addr, uint16_t Reg)
 {
   uint16_t read_value = 0, tmp = 0;
   
-  FMPI2Cx_ReadMultiple(&hI2cAudioHandler, Addr, Reg, FMPI2C_MEMADD_SIZE_16BIT, (uint8_t*)&read_value, 2);
+  FMPI2Cx_ReadMultiple(&hI2cAudioHandler, Addr, Reg, I2C_MEMADD_SIZE_16BIT, (uint8_t*)&read_value, 2);
   
   tmp = ((uint16_t)(read_value >> 8) & 0x00FF);
   

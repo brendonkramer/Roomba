@@ -46,7 +46,11 @@ DFSDM_Channel_HandleTypeDef hdfsdm1_channel1;
 DFSDM_Channel_HandleTypeDef hdfsdm2_channel1;
 DFSDM_Channel_HandleTypeDef hdfsdm2_channel7;
 
+I2C_HandleTypeDef hi2c2;
+
 I2S_HandleTypeDef hi2s2;
+
+QSPI_HandleTypeDef hqspi;
 
 SD_HandleTypeDef hsd;
 
@@ -64,13 +68,12 @@ const osThreadAttr_t UpdateLCD_attributes = { .name = "UpdateLCD", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
 /* Definitions for ControlMotors */
 osThreadId_t ControlMotorsHandle;
-const osThreadAttr_t ControlMotors_attributes =
-		{ .name = "ControlMotors", .priority =
-				(osPriority_t) osPriorityAboveNormal, .stack_size = 128 * 4 };
+const osThreadAttr_t ControlMotors_attributes = { .name = "ControlMotors",
+		.priority = (osPriority_t) osPriorityHigh1, .stack_size = 128 * 4 };
 /* Definitions for ChangeMetric */
 osThreadId_t ChangeMetricHandle;
 const osThreadAttr_t ChangeMetric_attributes = { .name = "ChangeMetric",
-		.priority = (osPriority_t) osPriorityLow, .stack_size = 128 * 4 };
+		.priority = (osPriority_t) osPriorityHigh, .stack_size = 128 * 4 };
 /* USER CODE BEGIN PV */
 #define LIDAR_RATE 50
 #define MOTOR_RATE 50
@@ -82,7 +85,7 @@ const osThreadAttr_t ChangeMetric_attributes = { .name = "ChangeMetric",
 #define METER_TO_CM 100
 uint8_t lidar_rx_buffer[9];
 //5A 06 03 00 00 00
-uint8_t lidar_tx_buffer[] = { 0x5A, 0x06, 0x03, 0x00, 0x00, 0x00 };
+uint8_t lidar_tx_buffer[] = { 0x5A, 0x06, 0x03, 0x01, 0x00, 0x00 };
 extern uint8_t metric_change = 0;
 uint8_t curr_metric = 0;
 uint16_t distance;
@@ -97,6 +100,8 @@ static void MX_FSMC_Init(void);
 static void MX_I2S2_Init(void);
 static void MX_SDIO_SD_Init(void);
 static void MX_UART7_Init(void);
+static void MX_I2C2_Init(void);
+static void MX_QUADSPI_Init(void);
 void StartPollLidarTask(void *argument);
 void StartUpdateLCDTask(void *argument);
 void StartMotorControlTask(void *argument);
@@ -123,6 +128,7 @@ int main(void) {
 	/* MCU Configuration--------------------------------------------------------*/
 
 	/* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+
 	HAL_Init();
 
 	/* USER CODE BEGIN Init */
@@ -144,6 +150,8 @@ int main(void) {
 	MX_I2S2_Init();
 	MX_SDIO_SD_Init();
 	MX_UART7_Init();
+	MX_I2C2_Init();
+	MX_QUADSPI_Init();
 	/* USER CODE BEGIN 2 */
 	HAL_UART_Transmit(&huart7, lidar_tx_buffer, 6, 50);
 	lidar_tx_buffer[1] = 0x04;
@@ -221,13 +229,11 @@ void SystemClock_Config(void) {
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI
-			| RCC_OSCILLATORTYPE_HSE;
-	RCC_OscInitStruct.HSEState = RCC_HSE_OFF;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
 	RCC_OscInitStruct.HSIState = RCC_HSI_ON;
 	RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
 	RCC_OscInitStruct.PLL.PLLM = 15;
 	RCC_OscInitStruct.PLL.PLLN = 144;
 	RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
@@ -250,7 +256,7 @@ void SystemClock_Config(void) {
 	}
 	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2S_APB1
 			| RCC_PERIPHCLK_DFSDM1 | RCC_PERIPHCLK_SDIO | RCC_PERIPHCLK_CLK48;
-	PeriphClkInitStruct.PLLI2S.PLLI2SN = 50;
+	PeriphClkInitStruct.PLLI2S.PLLI2SN = 75;
 	PeriphClkInitStruct.PLLI2S.PLLI2SM = 12;
 	PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
 	PeriphClkInitStruct.PLLI2S.PLLI2SQ = 2;
@@ -281,15 +287,15 @@ static void MX_DFSDM1_Init(void) {
 	hdfsdm1_channel1.Instance = DFSDM1_Channel1;
 	hdfsdm1_channel1.Init.OutputClock.Activation = ENABLE;
 	hdfsdm1_channel1.Init.OutputClock.Selection =
-	DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM;
+			DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM;
 	hdfsdm1_channel1.Init.OutputClock.Divider = 2;
 	hdfsdm1_channel1.Init.Input.Multiplexer = DFSDM_CHANNEL_EXTERNAL_INPUTS;
 	hdfsdm1_channel1.Init.Input.DataPacking = DFSDM_CHANNEL_STANDARD_MODE;
 	hdfsdm1_channel1.Init.Input.Pins = DFSDM_CHANNEL_SAME_CHANNEL_PINS;
 	hdfsdm1_channel1.Init.SerialInterface.Type =
-	DFSDM_CHANNEL_MANCHESTER_RISING;
+			DFSDM_CHANNEL_MANCHESTER_RISING;
 	hdfsdm1_channel1.Init.SerialInterface.SpiClock =
-	DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL;
+			DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL;
 	hdfsdm1_channel1.Init.Awd.FilterOrder = DFSDM_CHANNEL_FASTSINC_ORDER;
 	hdfsdm1_channel1.Init.Awd.Oversampling = 1;
 	hdfsdm1_channel1.Init.Offset = 0;
@@ -320,15 +326,15 @@ static void MX_DFSDM2_Init(void) {
 	hdfsdm2_channel1.Instance = DFSDM2_Channel1;
 	hdfsdm2_channel1.Init.OutputClock.Activation = ENABLE;
 	hdfsdm2_channel1.Init.OutputClock.Selection =
-	DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM;
+			DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM;
 	hdfsdm2_channel1.Init.OutputClock.Divider = 2;
 	hdfsdm2_channel1.Init.Input.Multiplexer = DFSDM_CHANNEL_EXTERNAL_INPUTS;
 	hdfsdm2_channel1.Init.Input.DataPacking = DFSDM_CHANNEL_STANDARD_MODE;
 	hdfsdm2_channel1.Init.Input.Pins = DFSDM_CHANNEL_SAME_CHANNEL_PINS;
 	hdfsdm2_channel1.Init.SerialInterface.Type =
-	DFSDM_CHANNEL_MANCHESTER_RISING;
+			DFSDM_CHANNEL_MANCHESTER_RISING;
 	hdfsdm2_channel1.Init.SerialInterface.SpiClock =
-	DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL;
+			DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL;
 	hdfsdm2_channel1.Init.Awd.FilterOrder = DFSDM_CHANNEL_FASTSINC_ORDER;
 	hdfsdm2_channel1.Init.Awd.Oversampling = 1;
 	hdfsdm2_channel1.Init.Offset = 0;
@@ -339,15 +345,15 @@ static void MX_DFSDM2_Init(void) {
 	hdfsdm2_channel7.Instance = DFSDM2_Channel7;
 	hdfsdm2_channel7.Init.OutputClock.Activation = ENABLE;
 	hdfsdm2_channel7.Init.OutputClock.Selection =
-	DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM;
+			DFSDM_CHANNEL_OUTPUT_CLOCK_SYSTEM;
 	hdfsdm2_channel7.Init.OutputClock.Divider = 2;
 	hdfsdm2_channel7.Init.Input.Multiplexer = DFSDM_CHANNEL_EXTERNAL_INPUTS;
 	hdfsdm2_channel7.Init.Input.DataPacking = DFSDM_CHANNEL_STANDARD_MODE;
 	hdfsdm2_channel7.Init.Input.Pins = DFSDM_CHANNEL_SAME_CHANNEL_PINS;
 	hdfsdm2_channel7.Init.SerialInterface.Type =
-	DFSDM_CHANNEL_MANCHESTER_RISING;
+			DFSDM_CHANNEL_MANCHESTER_RISING;
 	hdfsdm2_channel7.Init.SerialInterface.SpiClock =
-	DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL;
+			DFSDM_CHANNEL_SPI_CLOCK_EXTERNAL;
 	hdfsdm2_channel7.Init.Awd.FilterOrder = DFSDM_CHANNEL_FASTSINC_ORDER;
 	hdfsdm2_channel7.Init.Awd.Oversampling = 1;
 	hdfsdm2_channel7.Init.Offset = 0;
@@ -358,6 +364,38 @@ static void MX_DFSDM2_Init(void) {
 	/* USER CODE BEGIN DFSDM2_Init 2 */
 
 	/* USER CODE END DFSDM2_Init 2 */
+
+}
+
+/**
+ * @brief I2C2 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_I2C2_Init(void) {
+
+	/* USER CODE BEGIN I2C2_Init 0 */
+
+	/* USER CODE END I2C2_Init 0 */
+
+	/* USER CODE BEGIN I2C2_Init 1 */
+
+	/* USER CODE END I2C2_Init 1 */
+	hi2c2.Instance = I2C2;
+	hi2c2.Init.ClockSpeed = 100000;
+	hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+	hi2c2.Init.OwnAddress1 = 0;
+	hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+	hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+	hi2c2.Init.OwnAddress2 = 0;
+	hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+	hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+	if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN I2C2_Init 2 */
+
+	/* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -390,6 +428,39 @@ static void MX_I2S2_Init(void) {
 	/* USER CODE BEGIN I2S2_Init 2 */
 
 	/* USER CODE END I2S2_Init 2 */
+
+}
+
+/**
+ * @brief QUADSPI Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_QUADSPI_Init(void) {
+
+	/* USER CODE BEGIN QUADSPI_Init 0 */
+
+	/* USER CODE END QUADSPI_Init 0 */
+
+	/* USER CODE BEGIN QUADSPI_Init 1 */
+
+	/* USER CODE END QUADSPI_Init 1 */
+	/* QUADSPI parameter configuration*/
+	hqspi.Instance = QUADSPI;
+	hqspi.Init.ClockPrescaler = 255;
+	hqspi.Init.FifoThreshold = 1;
+	hqspi.Init.SampleShifting = QSPI_SAMPLE_SHIFTING_NONE;
+	hqspi.Init.FlashSize = 1;
+	hqspi.Init.ChipSelectHighTime = QSPI_CS_HIGH_TIME_1_CYCLE;
+	hqspi.Init.ClockMode = QSPI_CLOCK_MODE_0;
+	hqspi.Init.FlashID = QSPI_FLASH_ID_1;
+	hqspi.Init.DualFlash = QSPI_DUALFLASH_DISABLE;
+	if (HAL_QSPI_Init(&hqspi) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN QUADSPI_Init 2 */
+
+	/* USER CODE END QUADSPI_Init 2 */
 
 }
 
@@ -477,7 +548,7 @@ static void MX_GPIO_Init(void) {
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(GPIOE,
-	LED1_RED_Pin | MEMS_LED_Pin | LCD_BL_CTRL_Pin | LEFT_MOTOR_2_Pin,
+			LED1_RED_Pin | MEMS_LED_Pin | LCD_BL_CTRL_Pin | LEFT_MOTOR_2_Pin,
 			GPIO_PIN_RESET);
 
 	/*Configure GPIO pin Output Level */
@@ -500,14 +571,6 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_WritePin(GPIOG, USB_OTG_FS_PWR_EN_Pin | GPIO_PIN_13,
 			GPIO_PIN_RESET);
 
-	/*Configure GPIO pin : QSPI_BK1_IO2_Pin */
-	GPIO_InitStruct.Pin = QSPI_BK1_IO2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF9_QSPI;
-	HAL_GPIO_Init(QSPI_BK1_IO2_GPIO_Port, &GPIO_InitStruct);
-
 	/*Configure GPIO pins : LED1_RED_Pin MEMS_LED_Pin LCD_BL_CTRL_Pin LEFT_MOTOR_2_Pin */
 	GPIO_InitStruct.Pin = LED1_RED_Pin | MEMS_LED_Pin | LCD_BL_CTRL_Pin
 			| LEFT_MOTOR_2_Pin;
@@ -522,14 +585,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
 	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : QSPI_BK1_IO0_Pin QSPI_BK1_IO1_Pin */
-	GPIO_InitStruct.Pin = QSPI_BK1_IO0_Pin | QSPI_BK1_IO1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
-	HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : LEFT_MOTOR_SPEED_Pin */
 	GPIO_InitStruct.Pin = LEFT_MOTOR_SPEED_Pin;
@@ -584,27 +639,11 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(ARD_A4_GPIO_Port, &GPIO_InitStruct);
 
-	/*Configure GPIO pin : QSPI_CLK_Pin */
-	GPIO_InitStruct.Pin = QSPI_CLK_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF9_QSPI;
-	HAL_GPIO_Init(QSPI_CLK_GPIO_Port, &GPIO_InitStruct);
-
 	/*Configure GPIO pin : SD_Detect_Pin */
 	GPIO_InitStruct.Pin = SD_Detect_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(SD_Detect_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pins : ARD_D15_Pin ARD_D14_Pin */
-	GPIO_InitStruct.Pin = ARD_D15_Pin | ARD_D14_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-	GPIO_InitStruct.Pull = GPIO_PULLUP;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 	/*Configure GPIO pin : ARD_D13_Pin */
 	GPIO_InitStruct.Pin = ARD_D13_Pin;
@@ -613,22 +652,6 @@ static void MX_GPIO_Init(void) {
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 	GPIO_InitStruct.Alternate = GPIO_AF7_SPI3;
 	HAL_GPIO_Init(ARD_D13_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : QSPI_BK1_IO3_Pin */
-	GPIO_InitStruct.Pin = QSPI_BK1_IO3_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF9_QSPI;
-	HAL_GPIO_Init(QSPI_BK1_IO3_GPIO_Port, &GPIO_InitStruct);
-
-	/*Configure GPIO pin : QSPI_BK1_NCS_Pin */
-	GPIO_InitStruct.Pin = QSPI_BK1_NCS_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-	GPIO_InitStruct.Alternate = GPIO_AF10_OTG_FS;
-	HAL_GPIO_Init(QSPI_BK1_NCS_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : USB_OTG_FS_OVRCR_Pin CODEC_INT_Pin */
 	GPIO_InitStruct.Pin = USB_OTG_FS_OVRCR_Pin | CODEC_INT_Pin;
@@ -714,7 +737,7 @@ static void MX_FSMC_Init(void) {
 	hsram1.Init.BurstAccessMode = FSMC_BURST_ACCESS_MODE_DISABLE;
 	hsram1.Init.WaitSignalPolarity = FSMC_WAIT_SIGNAL_POLARITY_LOW;
 	hsram1.Init.WaitSignalActive = FSMC_WAIT_TIMING_BEFORE_WS;
-	hsram1.Init.WriteOperation = FSMC_WRITE_OPERATION_DISABLE;
+	hsram1.Init.WriteOperation = FSMC_WRITE_OPERATION_ENABLE;
 	hsram1.Init.WaitSignal = FSMC_WAIT_SIGNAL_DISABLE;
 	hsram1.Init.ExtendedMode = FSMC_EXTENDED_MODE_DISABLE;
 	hsram1.Init.AsynchronousWait = FSMC_ASYNCHRONOUS_WAIT_DISABLE;
@@ -762,7 +785,7 @@ void StartPollLidarTask(void *argument) {
 
 	for (;;) {
 		//delay for 50ms
-		vTaskDelayUntil(&xTaskGetTickCount, LIDAR_RATE);
+		//vTaskDelayUntil(&xTaskGetTickCount, LIDAR_RATE);
 
 		// send 5A 04 04 00 to tell lidar sensor to send data
 		HAL_UART_Transmit(&huart7, lidar_tx_buffer, 4, 50);
@@ -771,9 +794,10 @@ void StartPollLidarTask(void *argument) {
 		HAL_UART_Receive(&huart7, lidar_rx_buffer, 9, 50);
 
 		distance = lidar_rx_buffer[3];
-		distance << 8;
+		distance = distance << 8;
 		distance |= lidar_rx_buffer[2];
 		printf(distance);
+		osDelay(25);
 	}
 	/* USER CODE END 5 */
 }
@@ -827,8 +851,6 @@ void StartChangeMetricTask(void *argument) {
 	// cm -> inch -> feet -> meter
 	for (;;) {
 
-		vTaskDelayUntil(&xTaskGetTickCount, METRIC_CHANGE_RATE);
-
 		if (metric_change != curr_metric) {
 			if (curr_metric == 0) {
 				//metric is cm
@@ -877,6 +899,7 @@ void StartChangeMetricTask(void *argument) {
 			}
 			metric_change = curr_metric;
 		}
+		osDelay(25);
 	}
 	/* USER CODE END StartChangeMetricTask */
 }
@@ -930,3 +953,4 @@ void assert_failed(uint8_t *file, uint32_t line)
 #endif /* USE_FULL_ASSERT */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+

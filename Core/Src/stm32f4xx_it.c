@@ -168,7 +168,6 @@ void EXTI0_IRQHandler(void)
 metric_change = (metric_change + 1) % 4;
   /* USER CODE END EXTI0_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);
-
   /* USER CODE BEGIN EXTI0_IRQn 1 */
 
   /* USER CODE END EXTI0_IRQn 1 */
