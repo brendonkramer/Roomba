@@ -25,6 +25,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stm32F413h_discovery_lcd.h"
+#include "math.h"
+#include "stdlib.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,54 +61,47 @@ UART_HandleTypeDef huart7;
 
 SRAM_HandleTypeDef hsram1;
 
-/* Definitions for PollLidar */
-osThreadId_t PollLidarHandle;
-const osThreadAttr_t PollLidar_attributes = {
-  .name = "PollLidar",
-  .priority = (osPriority_t) osPriorityHigh4,
+/* Definitions for Calculate */
+osThreadId_t CalculateHandle;
+const osThreadAttr_t Calculate_attributes = {
+  .name = "Calculate",
+  .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
-/* Definitions for UpdateLCD */
-osThreadId_t UpdateLCDHandle;
-const osThreadAttr_t UpdateLCD_attributes = {
-  .name = "UpdateLCD",
-  .priority = (osPriority_t) osPriorityHigh2,
-  .stack_size = 128 * 4
+/* Definitions for LIDAR_TIMER */
+osTimerId_t LIDAR_TIMERHandle;
+const osTimerAttr_t LIDAR_TIMER_attributes = {
+  .name = "LIDAR_TIMER"
 };
-/* Definitions for ControlMotors */
-osThreadId_t ControlMotorsHandle;
-const osThreadAttr_t ControlMotors_attributes = {
-  .name = "ControlMotors",
-  .priority = (osPriority_t) osPriorityAboveNormal7,
-  .stack_size = 128 * 4
+/* Definitions for MOTOR_TIMER */
+osTimerId_t MOTOR_TIMERHandle;
+const osTimerAttr_t MOTOR_TIMER_attributes = {
+  .name = "MOTOR_TIMER"
 };
-/* Definitions for ChangeMetric */
-osThreadId_t ChangeMetricHandle;
-const osThreadAttr_t ChangeMetric_attributes = {
-  .name = "ChangeMetric",
-  .priority = (osPriority_t) osPriorityHigh1,
-  .stack_size = 128 * 4
+/* Definitions for METRIC_CHANGE_TIMER */
+osTimerId_t METRIC_CHANGE_TIMERHandle;
+const osTimerAttr_t METRIC_CHANGE_TIMER_attributes = {
+  .name = "METRIC_CHANGE_TIMER"
+};
+/* Definitions for LCD_TIMER */
+osTimerId_t LCD_TIMERHandle;
+const osTimerAttr_t LCD_TIMER_attributes = {
+  .name = "LCD_TIMER"
 };
 /* USER CODE BEGIN PV */
-#define LIDAR_RATE 50
-#define MOTOR_RATE 50
-#define LCD_RATE 100
-#define METRIC_CHANGE_RATE 200
-#define CM_TO_INCH 0.0328084
-#define INCH_TO_FEET 12
-#define FEET_TO_METER 0.3048000097536
-#define METER_TO_CM 100
+#define CM_TO_INCH 0.393701
+#define CM_TO_FEET 0.0328084
+#define CM_TO_METER 0.01
 uint8_t lidar_rx_buffer[9];
 //5A 06 03 00 00 00
 uint8_t lidar_tx_buffer_init[] = { 0x5A, 0x06, 0x03, 0x01, 0x00, 0x00 };
 //5A 05 05 02 00
-uint8_t lidar_tx_buffer_mode[] = { 0x5A, 0x05, 0x05, 0x02, 0x00 };
-uint8_t lidar_tx_buffer[] = { 0x5A, 0x04, 0x04, 0x00};
+uint8_t lidar_tx_buffer[] = { 0x5A, 0x04, 0x04, 0x00 };
 extern uint8_t metric_change = 0;
 uint8_t curr_metric = 0;
 uint8_t distance_high;
 uint8_t distance_low;
-uint16_t metric_multiplier;
+double metric_multiplier = 1;
 char metric[10] = "cm";
 /* USER CODE END PV */
 
@@ -120,10 +116,11 @@ static void MX_SDIO_SD_Init(void);
 static void MX_UART7_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_QUADSPI_Init(void);
-void StartPollLidarTask(void *argument);
-void StartUpdateLCDTask(void *argument);
-void StartMotorControlTask(void *argument);
-void StartChangeMetricTask(void *argument);
+void CalculateTask(void *argument);
+void LIDAR_TIMER_Callback(void *argument);
+void MOTOR_TIMER_Callback(void *argument);
+void METRIC_CHANGE_TIMER_Callback(void *argument);
+void LCD_TIMER_Callback(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -131,6 +128,57 @@ void StartChangeMetricTask(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void reverse(char *str, int len) {
+	int i = 0, j = len - 1, temp;
+	while (i < j) {
+		temp = str[i];
+		str[i] = str[j];
+		str[j] = temp;
+		i++;
+		j--;
+	}
+}
+
+// Converts a floating-point/double number to a string.
+int intToStr(int x, char str[], int d) {
+	int i = 0;
+	while (x) {
+		str[i++] = (x % 10) + '0';
+		x = x / 10;
+	}
+
+	// If number of digits required is more, then
+	// add 0s at the beginning
+	while (i < d)
+		str[i++] = '0';
+
+	reverse(str, i);
+	str[i] = '\0';
+	return i;
+}
+
+void ftoa(float n, char *res, int afterpoint) {
+	// Extract integer part
+	int ipart = (int) n;
+
+	// Extract floating part
+	float fpart = n - (float) ipart;
+
+	// convert integer part to string
+	int i = intToStr(ipart, res, 0);
+
+	// check for display option after point
+	if (afterpoint != 0) {
+		res[i] = '.'; // add dot
+
+		// Get the value of fraction part upto given no.
+		// of points after dot. The third parameter
+		// is needed to handle cases like 233.007
+		fpart = fpart * pow(10, afterpoint);
+
+		intToStr((int) fpart, res + i + 1, afterpoint);
+	}
+}
 
 /* USER CODE END 0 */
 
@@ -176,9 +224,9 @@ int main(void)
 	BSP_LCD_SetFont(&Font16);
 	//BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 
 	HAL_UART_Transmit(&huart7, lidar_tx_buffer_init, 6, 50);
-
 
 	//HAL_UART_Transmit(&huart7, lidar_tx_buffer_mode, 5, 50);
   /* USER CODE END 2 */
@@ -194,8 +242,50 @@ int main(void)
 	/* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
+  /* Create the timer(s) */
+  /* creation of LIDAR_TIMER */
+  LIDAR_TIMERHandle = osTimerNew(LIDAR_TIMER_Callback, osTimerPeriodic, NULL, &LIDAR_TIMER_attributes);
+
+  /* creation of MOTOR_TIMER */
+  MOTOR_TIMERHandle = osTimerNew(MOTOR_TIMER_Callback, osTimerOnce, NULL, &MOTOR_TIMER_attributes);
+
+  /* creation of METRIC_CHANGE_TIMER */
+  METRIC_CHANGE_TIMERHandle = osTimerNew(METRIC_CHANGE_TIMER_Callback, osTimerPeriodic, NULL, &METRIC_CHANGE_TIMER_attributes);
+
+  /* creation of LCD_TIMER */
+  LCD_TIMERHandle = osTimerNew(LCD_TIMER_Callback, osTimerPeriodic, NULL, &LCD_TIMER_attributes);
+
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
+
+	if (LIDAR_TIMERHandle != NULL) {
+		uint32_t timerDelay = 100U;
+
+		osStatus_t status = osTimerStart(LIDAR_TIMERHandle, timerDelay);
+		if (status != osOK) {
+			//k
+		}
+	}
+
+	if (METRIC_CHANGE_TIMERHandle != NULL) {
+		uint32_t timerDelay = 200U;
+
+		osStatus_t status = osTimerStart(METRIC_CHANGE_TIMERHandle, timerDelay);
+		if (status != osOK) {
+			//k
+			curr_metric = curr_metric;
+		}
+	}
+
+	if (LCD_TIMERHandle != NULL) {
+		uint32_t timerDelay = 200U;
+
+		osStatus_t status = osTimerStart(LCD_TIMERHandle, timerDelay);
+		if (status != osOK) {
+			//k
+		}
+	}
+
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -203,17 +293,8 @@ int main(void)
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of PollLidar */
-  PollLidarHandle = osThreadNew(StartPollLidarTask, NULL, &PollLidar_attributes);
-
-  /* creation of UpdateLCD */
-  UpdateLCDHandle = osThreadNew(StartUpdateLCDTask, NULL, &UpdateLCD_attributes);
-
-  /* creation of ControlMotors */
-  ControlMotorsHandle = osThreadNew(StartMotorControlTask, NULL, &ControlMotors_attributes);
-
-  /* creation of ChangeMetric */
-  ChangeMetricHandle = osThreadNew(StartChangeMetricTask, NULL, &ChangeMetric_attributes);
+  /* creation of Calculate */
+  CalculateHandle = osThreadNew(CalculateTask, NULL, &Calculate_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
@@ -250,11 +331,12 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 15;
   RCC_OscInitStruct.PLL.PLLN = 144;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
@@ -279,7 +361,7 @@ void SystemClock_Config(void)
   }
   PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_I2S_APB1|RCC_PERIPHCLK_DFSDM1
                               |RCC_PERIPHCLK_SDIO|RCC_PERIPHCLK_CLK48;
-  PeriphClkInitStruct.PLLI2S.PLLI2SN = 75;
+  PeriphClkInitStruct.PLLI2S.PLLI2SN = 50;
   PeriphClkInitStruct.PLLI2S.PLLI2SM = 12;
   PeriphClkInitStruct.PLLI2S.PLLI2SR = 2;
   PeriphClkInitStruct.PLLI2S.PLLI2SQ = 2;
@@ -795,170 +877,144 @@ static void MX_FSMC_Init(void)
 
 /* USER CODE END 4 */
 
-/* USER CODE BEGIN Header_StartPollLidarTask */
+/* USER CODE BEGIN Header_CalculateTask */
 /**
- * @brief  Function implementing the PollLidar thread.
+ * @brief  Function implementing the Calculate thread.
  * @param  argument: Not used
  * @retval None
  */
-/* USER CODE END Header_StartPollLidarTask */
-void StartPollLidarTask(void *argument)
+/* USER CODE END Header_CalculateTask */
+void CalculateTask(void *argument)
 {
   /* init code for USB_HOST */
   MX_USB_HOST_Init();
   /* USER CODE BEGIN 5 */
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 	/* Infinite loop */
-
-	TickType_t lastWakeTime = xTaskGetTickCount();
-
 	for (;;) {
-		//delay for 50ms
-		//vTaskDelayUntil(&xTaskGetTickCount, LIDAR_RATE);
-
-		// send 5A 04 04 00 to tell lidar sensor to send data
-		HAL_UART_Transmit(&huart7, lidar_tx_buffer, 4, 50);
-
-		//get 9 bytes of data and place into buffer
-		HAL_UART_Receive(&huart7, lidar_rx_buffer, 9, 50);
-
-		distance_high = lidar_rx_buffer[3];
-		distance_low = lidar_rx_buffer[2];
-		osDelay(25);
+		if (MOTOR_TIMERHandle != NULL) {
+			if (distance_high != 0) {
+				uint32_t timerDelay = 100U;
+				osStatus_t status = osTimerStart(MOTOR_TIMERHandle, timerDelay);
+				//delete first
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+			} else if (distance_low > 130) {
+				uint32_t timerDelay = 50U;
+				osStatus_t status = osTimerStart(MOTOR_TIMERHandle, timerDelay);
+				//delete 1st
+				HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+				//turn
+			}
+		}
+		osDelay(75);
 	}
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartUpdateLCDTask */
-/**
- * @brief Function implementing the UpdateLCD thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartUpdateLCDTask */
-void StartUpdateLCDTask(void *argument)
+/* LIDAR_TIMER_Callback function */
+void LIDAR_TIMER_Callback(void *argument)
 {
-  /* USER CODE BEGIN StartUpdateLCDTask */
-	/* Infinite loop */
-	for (;;) {
-		char num_string[30];
-		if (curr_metric == 0)
-		{
-			metric[0] = '\0';
-			strcpy(metric, " cm   ");
-		}
-		else if (curr_metric == 1)
-		{
-			metric[0] = '\0';
-			strcpy(metric, " inch   ");
-		}
-		if (curr_metric == 2)
-		{
-			metric[0] = '\0';
-			strcpy(metric, " ft   ");
-		}
-		if (curr_metric == 3)
-		{
-			metric[0] = '\0';
-			strcpy(metric, " meter  ");
-		}
+  /* USER CODE BEGIN LIDAR_TIMER_Callback */
+	long start = xTaskGetTickCount();
+// send 5A 04 04 00 to tell lidar sensor to send data
+	HAL_UART_Transmit(&huart7, lidar_tx_buffer, 4, 30);
 
-		itoa(distance_high, num_string, 10);
-		strcat(num_string, metric);
-		//BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
-		//BSP_LCD_FillRect(0,112,240,15);
-		BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
-		BSP_LCD_DisplayStringAt(0, 112, num_string, CENTER_MODE);
+//get 9 bytes of data and place into buffer
+	HAL_UART_Receive(&huart7, lidar_rx_buffer, 9, 30);
 
-	}
-  /* USER CODE END StartUpdateLCDTask */
+	distance_high = lidar_rx_buffer[4];
+	distance_low = lidar_rx_buffer[3];
+	long stop = xTaskGetTickCount() - start;
+  /* USER CODE END LIDAR_TIMER_Callback */
 }
 
-/* USER CODE BEGIN Header_StartMotorControlTask */
-/**
- * @brief Function implementing the ControlMotors thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartMotorControlTask */
-void StartMotorControlTask(void *argument)
+/* MOTOR_TIMER_Callback function */
+void MOTOR_TIMER_Callback(void *argument)
 {
-  /* USER CODE BEGIN StartMotorControlTask */
-	/* Infinite loop */
-	for (;;) {
+  /* USER CODE BEGIN MOTOR_TIMER_Callback */
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
 
-	}
-  /* USER CODE END StartMotorControlTask */
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+  /* USER CODE END MOTOR_TIMER_Callback */
 }
 
-/* USER CODE BEGIN Header_StartChangeMetricTask */
-/**
- * @brief Function implementing the ChangeMetric thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_StartChangeMetricTask */
-void StartChangeMetricTask(void *argument)
+/* METRIC_CHANGE_TIMER_Callback function */
+void METRIC_CHANGE_TIMER_Callback(void *argument)
 {
-  /* USER CODE BEGIN StartChangeMetricTask */
-	/* Infinite loop */
-	metric_change = curr_metric;
-
-	TickType_t lastWakeTime = xTaskGetTickCount();
-
-	// cm -> inch -> feet -> meter
-	for (;;) {
-
-		if (metric_change != curr_metric) {
-			if (curr_metric == 0) {
-				//metric is cm
-				if (metric_change == 1) {
-					metric_multiplier = CM_TO_INCH;
-				} else if (metric_change == 2) {
-					metric_multiplier = CM_TO_INCH * INCH_TO_FEET;
-				} else if (metric_change == 3) {
-					metric_multiplier = CM_TO_INCH * INCH_TO_FEET * FEET_TO_METER;
-				} else {
-					//should never get here
-				}
-			} else if (curr_metric == 1) {
-				//metric is inch
-				if (metric_change == 0) {
-					metric_multiplier = CM_TO_INCH;
-				} else if (metric_change == 2) {
-					metric_multiplier = INCH_TO_FEET;
-				} else if (metric_change == 3) {
-					metric_multiplier = INCH_TO_FEET * FEET_TO_METER;
-				} else {
-					//should never get here
-				}
-			} else if (curr_metric == 2) {
-				//metric is feet
-				if (metric_change == 0) {
-					metric_multiplier = INCH_TO_FEET / CM_TO_INCH;
-				} else if (metric_change == 1) {
-					metric_multiplier = INCH_TO_FEET;
-				} else if (metric_change == 3) {
-					metric_multiplier = FEET_TO_METER;
-				} else {
-					//should never get here
-				}
-			} else if (curr_metric == 3) {
-				//metric is meter
-				if (metric_change == 0) {
-					metric_multiplier = FEET_TO_METER / INCH_TO_FEET / CM_TO_INCH;
-				} else if (metric_change == 1) {
-					metric_multiplier = FEET_TO_METER / INCH_TO_FEET;
-				} else if (metric_change == 2) {
-					metric_multiplier = FEET_TO_METER;
-				} else {
-					//should never get here
-				}
-			}
-			curr_metric = metric_change;
+  /* USER CODE BEGIN METRIC_CHANGE_TIMER_Callback */
+	long start = xTaskGetTickCount();
+	if (metric_change != curr_metric) {
+		if (metric_change == 0) {
+			//metric is cm
+			metric_multiplier = 1;
+		} else if (metric_change == 1) {
+			//metric is inch
+			metric_multiplier = CM_TO_INCH;
+		} else if (metric_change == 2) {
+			//metric is feet
+			metric_multiplier = CM_TO_FEET;
+		} else if (metric_change == 3) {
+			//metric is meter
+			metric_multiplier = CM_TO_METER;
 		}
-		osDelay(25);
+		curr_metric = metric_change;
 	}
-  /* USER CODE END StartChangeMetricTask */
+	long stop = xTaskGetTickCount() - start;
+  /* USER CODE END METRIC_CHANGE_TIMER_Callback */
+}
+
+/* LCD_TIMER_Callback function */
+void LCD_TIMER_Callback(void *argument)
+{
+  /* USER CODE BEGIN LCD_TIMER_Callback */
+	long start = xTaskGetTickCount();
+	char num_string[30] = { 0 };
+	char string_high[15] = { 0 };
+	char string_low[15] = { 0 };
+	if (curr_metric == 0) {
+		metric[0] = '\0';
+		strcpy(metric, " cm   ");
+	} else if (curr_metric == 1) {
+		metric[0] = '\0';
+		strcpy(metric, " inch   ");
+	}
+	if (curr_metric == 2) {
+		metric[0] = '\0';
+		strcpy(metric, " ft   ");
+	}
+	if (curr_metric == 3) {
+		metric[0] = '\0';
+		strcpy(metric, " meter  ");
+	}
+	uint16_t temp = metric_multiplier * (distance_high * 255 + distance_low);
+
+	itoa(temp, string_high, 10);
+	strcat(num_string, string_high);
+	strcat(num_string, metric);
+	BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
+	BSP_LCD_FillRect(0, 112, 240, 15);
+	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
+	BSP_LCD_DisplayStringAt(0, 112, num_string, CENTER_MODE);
+	long stop = xTaskGetTickCount() - start;
+  /* USER CODE END LCD_TIMER_Callback */
 }
 
 /**
