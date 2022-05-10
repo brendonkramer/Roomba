@@ -57,6 +57,9 @@ QSPI_HandleTypeDef hqspi;
 
 SD_HandleTypeDef hsd;
 
+TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim5;
+
 UART_HandleTypeDef huart7;
 
 SRAM_HandleTypeDef hsram1;
@@ -116,6 +119,8 @@ static void MX_SDIO_SD_Init(void);
 static void MX_UART7_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_QUADSPI_Init(void);
+static void MX_TIM3_Init(void);
+static void MX_TIM5_Init(void);
 void CalculateTask(void *argument);
 void LIDAR_TIMER_Callback(void *argument);
 void MOTOR_TIMER_Callback(void *argument);
@@ -218,6 +223,8 @@ int main(void)
   MX_UART7_Init();
   MX_I2C2_Init();
   MX_QUADSPI_Init();
+  MX_TIM3_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
 	BSP_LCD_Init();
 	BSP_LCD_Clear(LCD_COLOR_WHITE);
@@ -609,6 +616,124 @@ static void MX_SDIO_SD_Init(void)
 }
 
 /**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 1000;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 500;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 0;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 1000;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 500;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+  HAL_TIM_MspPostInit(&htim5);
+
+}
+
+/**
   * @brief UART7 Initialization Function
   * @param None
   * @retval None
@@ -667,14 +792,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, RIGHT_MOTOR_I_Pin|RIGHT_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LEFT_MOTOR_SPEED_GPIO_Port, LEFT_MOTOR_SPEED_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(RIGHT_MOTOR_IA4_GPIO_Port, RIGHT_MOTOR_IA4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, RIGHT_MOTOR_SPEED_Pin|GPIO_PIN_13|LCD_TE_Pin|WIFI_WKUP_Pin
-                          |LEFT_MOTOR_I_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13|LCD_TE_Pin|WIFI_WKUP_Pin|LEFT_MOTOR_I_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOG, USB_OTG_FS_PWR_EN_Pin|GPIO_PIN_13, GPIO_PIN_RESET);
@@ -692,13 +813,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : LEFT_MOTOR_SPEED_Pin */
-  GPIO_InitStruct.Pin = LEFT_MOTOR_SPEED_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LEFT_MOTOR_SPEED_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : ARD_A0_Pin ARD_A5_Pin */
   GPIO_InitStruct.Pin = ARD_A0_Pin|ARD_A5_Pin;
@@ -731,15 +845,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(ARD_A3_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : RIGHT_MOTOR_SPEED_Pin PB13 LCD_TE_Pin WIFI_WKUP_Pin
-                           LEFT_MOTOR_I_Pin */
-  GPIO_InitStruct.Pin = RIGHT_MOTOR_SPEED_Pin|GPIO_PIN_13|LCD_TE_Pin|WIFI_WKUP_Pin
-                          |LEFT_MOTOR_I_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
   /*Configure GPIO pin : ARD_A4_Pin */
   GPIO_InitStruct.Pin = ARD_A4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
@@ -759,6 +864,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   GPIO_InitStruct.Alternate = GPIO_AF7_SPI3;
   HAL_GPIO_Init(ARD_D13_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB13 LCD_TE_Pin WIFI_WKUP_Pin LEFT_MOTOR_I_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|LCD_TE_Pin|WIFI_WKUP_Pin|LEFT_MOTOR_I_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : USB_OTG_FS_OVRCR_Pin CODEC_INT_Pin */
   GPIO_InitStruct.Pin = USB_OTG_FS_OVRCR_Pin|CODEC_INT_Pin;
@@ -889,10 +1001,14 @@ void CalculateTask(void *argument)
   /* init code for USB_HOST */
   MX_USB_HOST_Init();
   /* USER CODE BEGIN 5 */
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_4);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_RESET);
 	/* Infinite loop */
 	for (;;) {
 		if (MOTOR_TIMERHandle != NULL) {
@@ -900,17 +1016,25 @@ void CalculateTask(void *argument)
 				uint32_t timerDelay = 100U;
 				osStatus_t status = osTimerStart(MOTOR_TIMERHandle, timerDelay);
 				//delete first
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_SET);
+				HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
+
+				HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_SET); //PWM
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET); //PWM
 				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 			} else if (distance_low > 130) {
 				uint32_t timerDelay = 50U;
 				osStatus_t status = osTimerStart(MOTOR_TIMERHandle, timerDelay);
 				//delete 1st
 				HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET);
-				HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_SET);
+
+				//MOTOR A
+				HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_SET); //PWM
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+
+				//MOTOR B
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET); //PWM
 				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 			} else {
 				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
@@ -938,6 +1062,7 @@ void LIDAR_TIMER_Callback(void *argument)
 
 	distance_high = lidar_rx_buffer[4];
 	distance_low = lidar_rx_buffer[3];
+	distance_high = 1;
 	long stop = xTaskGetTickCount() - start;
   /* USER CODE END LIDAR_TIMER_Callback */
 }
@@ -946,13 +1071,13 @@ void LIDAR_TIMER_Callback(void *argument)
 void MOTOR_TIMER_Callback(void *argument)
 {
   /* USER CODE BEGIN MOTOR_TIMER_Callback */
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET);
+	/*HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET);
 
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_RESET);
 	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);*/
   /* USER CODE END MOTOR_TIMER_Callback */
 }
 
