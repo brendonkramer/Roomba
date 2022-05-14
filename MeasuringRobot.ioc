@@ -1,8 +1,7 @@
 #MicroXplorer Configuration settings - do not modify
 FREERTOS.FootprintOK=true
-FREERTOS.IPParameters=Tasks01,FootprintOK,Timers01
-FREERTOS.Tasks01=Calculate,8,128,CalculateTask,Default,NULL,Dynamic,NULL,NULL
-FREERTOS.Timers01=LIDAR_TIMER,LIDAR_TIMER_Callback,osTimerPeriodic,Default,NULL,Dynamic,NULL;MOTOR_TIMER,MOTOR_TIMER_Callback,osTimerOnce,Default,NULL,Dynamic,NULL;METRIC_CHANGE_TIMER,METRIC_CHANGE_TIMER_Callback,osTimerPeriodic,Default,NULL,Dynamic,NULL;LCD_TIMER,LCD_TIMER_Callback,osTimerPeriodic,Default,NULL,Dynamic,NULL
+FREERTOS.IPParameters=Tasks01,FootprintOK
+FREERTOS.Tasks01=MetricChange,24,128,MetricChangeTask,Default,NULL,Dynamic,NULL,NULL;Motor,24,128,MotorTask,Default,NULL,Dynamic,NULL,NULL;Lidar,24,128,LidarTask,Default,NULL,Dynamic,NULL,NULL;LCD,24,128,LCDTask,Default,NULL,Dynamic,NULL,NULL
 File.Version=6
 GPIO.groupedBy=Expand Peripherals
 I2S2.ErrorAudioFreq=1.72 %
@@ -822,8 +821,10 @@ TIM5.IPParameters=Channel-PWM Generation4 CH4,Period,Pulse-PWM Generation4 CH4,P
 TIM5.Period=1000
 TIM5.Prescaler=16
 TIM5.Pulse-PWM\ Generation4\ CH4=500
-UART7.IPParameters=VirtualMode
+UART7.IPParameters=VirtualMode,WordLength,OverSampling
+UART7.OverSampling=UART_OVERSAMPLING_16
 UART7.VirtualMode=Asynchronous
+UART7.WordLength=WORDLENGTH_8B
 USB_HOST.BSP.number=1
 USB_HOST.IPParameters=VirtualModeFS,USBH_HandleTypeDef,USBH_USE_OS-CDC_FS
 USB_HOST.USBH_HandleTypeDef=hUsbHostFS
