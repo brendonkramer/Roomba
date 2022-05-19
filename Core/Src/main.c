@@ -82,8 +82,8 @@ osThreadId_t LCDHandle;
 const osThreadAttr_t LCD_attributes = { .name = "LCD", .priority =
 		(osPriority_t) osPriorityNormal, .stack_size = 128 * 4 };
 /* USER CODE BEGIN PV */
-#define MOTOR_TASK_RATE 100
-#define LIDAR_TASK_RATE 100
+#define MOTOR_TASK_RATE 75
+#define LIDAR_TASK_RATE 75
 #define LCD_TASK_RATE 200
 #define METRIC_TASK_RATE 300
 #define CM_TO_INCH 0.393701
@@ -1018,14 +1018,14 @@ void MotorTask(void *argument) {
 		vTaskDelayUntil(&xLastWakeTime, xFrequency);
 		long start = xTaskGetTickCount();
 		if (distance_high > 0) {
-			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 900);
-			__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_4, 900);
-
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
-		} else if (distance_low > 50) {
+
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 850);
+			__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_4, 850);
+		} else if (distance_low > 150) {
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, distance_low * 3);
 			__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_4, distance_low * 3);
 
@@ -1033,15 +1033,26 @@ void MotorTask(void *argument) {
 			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+		} else if (distance_low > 50) {
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_SET);
+
+			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, distance_low * 3.5);
+			__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_4, distance_low * 3.5);
 		} else {
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
+
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 500);
 			__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_4, 500);
 
-			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(GPIOE, GPIO_PIN_6, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
-			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 			//turn
+
+			// after turn is done increment turn counter and check to
 		}
 		long stop = xTaskGetTickCount() - start;
 		osDelay(1);
