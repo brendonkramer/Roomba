@@ -1050,9 +1050,13 @@ void MotorTask(void *argument) {
 			__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, 500);
 			__HAL_TIM_SET_COMPARE(&htim5, TIM_CHANNEL_4, 500);
 
-			//turn
-
-			// after turn is done increment turn counter and check to
+			// Pseudocode for turning and calculating area
+			// At the beginning, before starting to move, get the distance and store into a variable
+			// Then move until a certain threshold
+			// Once at the wall, turn 90 degrees to face the next wall
+			// Then repeat the steps, before moving, get distance and store into variable
+			// At the beginning of each turn check a turn counter to see if 3 turns have been performed.
+			// If turn counter is 3, calculate area, if it is less than 3 then continue like normal
 		}
 		long stop = xTaskGetTickCount() - start;
 		osDelay(1);
