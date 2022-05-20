@@ -127,57 +127,6 @@ void LCDTask(void *argument);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void reverse(char *str, int len) {
-	int i = 0, j = len - 1, temp;
-	while (i < j) {
-		temp = str[i];
-		str[i] = str[j];
-		str[j] = temp;
-		i++;
-		j--;
-	}
-}
-
-// Converts a floating-point/double number to a string.
-int intToStr(int x, char str[], int d) {
-	int i = 0;
-	while (x) {
-		str[i++] = (x % 10) + '0';
-		x = x / 10;
-	}
-
-	// If number of digits required is more, then
-	// add 0s at the beginning
-	while (i < d)
-		str[i++] = '0';
-
-	reverse(str, i);
-	str[i] = '\0';
-	return i;
-}
-
-void ftoa(float n, char *res, int afterpoint) {
-	// Extract integer part
-	int ipart = (int) n;
-
-	// Extract floating part
-	float fpart = n - (float) ipart;
-
-	// convert integer part to string
-	int i = intToStr(ipart, res, 0);
-
-	// check for display option after point
-	if (afterpoint != 0) {
-		res[i] = '.'; // add dot
-
-		// Get the value of fraction part upto given no.
-		// of points after dot. The third parameter
-		// is needed to handle cases like 233.007
-		fpart = fpart * pow(10, afterpoint);
-
-		intToStr((int) fpart, res + i + 1, afterpoint);
-	}
-}
 
 /* USER CODE END 0 */
 
@@ -223,13 +172,10 @@ int main(void) {
 	BSP_LCD_Init();
 	BSP_LCD_Clear(LCD_COLOR_WHITE);
 	BSP_LCD_SetFont(&Font16);
-	//BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 	BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
 	BSP_LCD_SetTextColor(LCD_COLOR_BLACK);
 
 	HAL_UART_Transmit(&huart7, lidar_tx_buffer_init, 6, 50);
-
-	//HAL_UART_Transmit(&huart7, lidar_tx_buffer_mode, 5, 50);
 	/* USER CODE END 2 */
 
 	/* Init scheduler */
@@ -1081,12 +1027,10 @@ void LidarTask(void *argument) {
 		long start = xTaskGetTickCount();
 		HAL_StatusTypeDef status = HAL_UART_GetState(&huart7);
 		// send 5A 04 04 00 to tell lidar sensor to send data
-		HAL_StatusTypeDef statusT = HAL_UART_Transmit(&huart7, lidar_tx_buffer,
-				4, 25);
+		HAL_StatusTypeDef statusT = HAL_UART_Transmit(&huart7, lidar_tx_buffer, 4, 25);
 
 		//get 9 bytes of data and place into buffer
-		HAL_StatusTypeDef statusR = HAL_UART_Receive_DMA(&huart7,
-				lidar_rx_buffer, 9);
+		HAL_StatusTypeDef statusR = HAL_UART_Receive_DMA(&huart7, lidar_rx_buffer, 9);
 		if (lidar_rx_buffer[0] == 89 && lidar_rx_buffer[1] == 89) {
 			distance_high = lidar_rx_buffer[3];
 			distance_low = lidar_rx_buffer[2];
@@ -1106,7 +1050,6 @@ void LidarTask(void *argument) {
 /* USER CODE END Header_LCDTask */
 void LCDTask(void *argument) {
 	/* USER CODE BEGIN LCDTask */
-	/* Infinite loop */
 	const TickType_t xFrequency = LCD_TASK_RATE;
 	TickType_t xLastWakeTime = xTaskGetTickCount();
 	/* Infinite loop */
